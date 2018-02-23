@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.8/dc.min.css"/>
+    
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter/1.3.12/crossfilter.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.8/dc.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+    
+</head>
+<body>
+    
+    <div id="chart-here"></div>
+    
+    <script>
+    
+        queue()
+            .defer(d3.json, "data/transactions.json")
+            .await(makeGraphs);
+            
+        function makeGraphs (error, transactionData) {
+            let ndx = crossfilter(transactionData);
+            
+            let parseDate = d3.time.format("%d/%m/%Y").parse;
+            transactionData.forEach(function(d) {
+                d.date = parseDate(d.date);
+            });
+            
+            let date_dim = ndx.dimension(dc.pluck('date'));
+            
+            let min_date = date_dim.bottom(1)[0].date;
+            let max_date = date_dim.top(1)[0].date;
+            
+            let spend_dim = ndx.dimension(function(d) {
+                return [d.date, d.spend, d.name, d.store]
+            });
+            let spend_group = spend_dim.group();
+            
+            var buyerColors = d3.scale.ordinal()
+                .domain(['Alice', 'Tom', 'Bob'])
+                .range(['red', 'green', 'blue']);
+            
+            dc.scatterPlot("#chart-here")
+                .width(768)
+                .height(480)
+                .x(d3.time.scale().domain([min_date, max_date]))
+                .brushOn(false)
+                .symbolSize(8)
+                .clipPadding(10)
+                .yAxisLabel("Amaount Spend")
+                .colorAccessor(function (d) {
+                    return d.key[2];
+                })
+                .colors(buyerColors)
+                .title(function (d) {
+                    return d.key[2] + " spent " + d.key[1] + " in " + d.key[3];
+                })
+                .dimension(spend_dim)
+                .group(spend_group);
+                
+            dc.renderAll();
+        }
+        
+        // var subChart = function (c) {
+        //     return dc.scatterPlot(c)
+        //                 .symbolSize(8)
+        //                 .highlightedSize(10);
+        // }
+        
+    </script>
+    
+</body>
+</html>
